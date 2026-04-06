@@ -8,7 +8,6 @@ app = Flask(__name__)
 # Chemin du modele sauvegarde
 MODEL_PATH = Path(__file__).parent / "model.pkl"
 
-# Features attendées (dans le même ordre que l'entraînement)
 # Features attendues (dans le même ordre que l'entraînement)
 FEATURE_COLS = [
     'credit_lines_outstanding',
@@ -24,13 +23,13 @@ def load_model():
     """Charge le modele depuis le fichier pickle."""
     try:
         with open(MODEL_PATH, 'rb') as f:
-            model = pickle.load(f)
+            loaded_model = pickle.load(f)
         print(f"Modele charge depuis {MODEL_PATH}")
-        return model
+        return loaded_model 
     except FileNotFoundError:
         print(f"Erreur: Le fichier {MODEL_PATH} n'existe pas")
         return None
-    except Exception as e:
+    except (OSError, pickle.UnpicklingError, EOFError) as e:
         print(f"Erreur lors du chargement du modele: {e}")
         return None
 
@@ -83,7 +82,7 @@ def predict():
             
             return render_template("index.html", prediction_text=prediction_text)
         
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError, IndexError) as e:
             return render_template(
                 "index.html",
                 prediction_text=f"Erreur lors de la prédiction: {str(e)}"
