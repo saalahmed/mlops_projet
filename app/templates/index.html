@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prédiction de Défaut de Crédit</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        input[type="number"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="number"]:focus,
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 20px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .result.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .result.warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .result.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info-box {
+            background-color: #f0f7ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 3px;
+            font-size: 13px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏦 Prédiction de Défaut de Crédit</h1>
+        <p class="subtitle">Entrez les informations du client pour obtenir une prédiction</p>
+        
+        <div class="info-box">
+            <strong>ℹ️ Comment ça marche :</strong><br>
+            Ce modèle prédit le risque de défaut de crédit basé sur 6 facteurs clés. 
+            Remplissez les informations et cliquez sur "Prédire".
+        </div>
+        
+        <form method="POST" action="/predict">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="credit_lines_outstanding">Lignes de crédit actives</label>
+                    <input type="number" id="credit_lines_outstanding" name="credit_lines_outstanding" 
+                           min="0" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="fico_score">Score FICO</label>
+                    <input type="number" id="fico_score" name="fico_score" 
+                           min="300" max="850" step="1" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="loan_amt_outstanding">Montant du prêt (€)</label>
+                    <input type="number" id="loan_amt_outstanding" name="loan_amt_outstanding" 
+                           min="0" step="100" required>
+                </div>
+                <div class="form-group">
+                    <label for="years_employed">Années d'emploi</label>
+                    <input type="number" id="years_employed" name="years_employed" 
+                           min="0" step="0.5" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="total_debt_outstanding">Dette totale (€)</label>
+                    <input type="number" id="total_debt_outstanding" name="total_debt_outstanding" 
+                           min="0" step="100" required>
+                </div>
+                <div class="form-group">
+                    <label for="income">Revenu (€)</label>
+                    <input type="number" id="income" name="income" 
+                           min="0" step="100" required>
+                </div>
+            </div>
+            
+            <button type="submit">🔮 Prédire le Risque</button>
+        </form>
+        
+        {% if prediction_text %}
+            {% if "Risque" in prediction_text or "Erreur" in prediction_text %}
+                <div class="result warning">
+                    {{ prediction_text }}
+                </div>
+            {% else %}
+                <div class="result success">
+                    {{ prediction_text }}
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+</body>
+</html>

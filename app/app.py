@@ -1,91 +1,96 @@
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, render_template, request
 import pickle
 import pandas as pd
+from pathlib import Path
 
-app = Flask("CreditSafe")
+app = Flask(__name__)
 
-with open("app/model.pkl", "rb") as f:
-    pipeline = pickle.load(f)
+# Chemin du modele sauvegarde
+MODEL_PATH = Path(__file__).parent / "model.pkl"
 
-HTML = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>CreditSafe</title>
-    <style>
-        body { font-family: Arial; max-width: 500px; margin: 50px auto; padding: 20px; }
-        h1 { color: #2c3e50; text-align: center; }
-        input { width: 100%; padding: 8px; margin: 5px 0 15px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #2c3e50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        button:hover { background: #34495e; }
-        #result { margin-top: 20px; padding: 15px; border-radius: 4px; text-align: center; font-size: 18px; }
-        .danger { background: #ffe0e0; color: #c0392b; }
-        .safe { background: #e0ffe0; color: #27ae60; }
-        label { font-weight: bold; color: #555; }
-    </style>
-</head>
-<body>
-    <h1>🏦 CreditSafe</h1>
-    <p style="text-align:center; color:#888;">Prédiction de défaut de prêt</p>
-    <label>Lignes de crédit en cours</label>
-    <input type="number" id="credit_lines_outstanding" placeholder="ex: 3">
-    <label>Montant du prêt en cours</label>
-    <input type="number" id="loan_amt_outstanding" placeholder="ex: 15000">
-    <label>Dette totale en cours</label>
-    <input type="number" id="total_debt_outstanding" placeholder="ex: 20000">
-    <label>Revenu annuel</label>
-    <input type="number" id="income" placeholder="ex: 50000">
-    <label>Années d'emploi</label>
-    <input type="number" id="years_employed" placeholder="ex: 5">
-    <label>Score FICO</label>
-    <input type="number" id="fico_score" placeholder="ex: 700">
-    <button onclick="predict()">Analyser le risque</button>
-    <div id="result"></div>
-    <script>
-        async function predict() {
-            const data = {
-                credit_lines_outstanding: parseFloat(document.getElementById('credit_lines_outstanding').value),
-                loan_amt_outstanding: parseFloat(document.getElementById('loan_amt_outstanding').value),
-                total_debt_outstanding: parseFloat(document.getElementById('total_debt_outstanding').value),
-                income: parseFloat(document.getElementById('income').value),
-                years_employed: parseFloat(document.getElementById('years_employed').value),
-                fico_score: parseFloat(document.getElementById('fico_score').value)
-            };
-            const response = await fetch('/predict', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
-            const result = await response.json();
-            const div = document.getElementById('result');
-            if (result.prediction === 1) {
-                div.className = 'danger';
-                div.innerHTML = 'Risque de défaut détecté<br><small>Probabilité: ' + (result.probabilite_defaut * 100).toFixed(1) + '%</small>';
-            } else {
-                div.className = 'safe';
-                div.innerHTML = 'Pas de risque détecté<br><small>Probabilité: ' + (result.probabilite_defaut * 100).toFixed(1) + '%</small>';
-            }
-        }
-    </script>
-</body>
-</html>
-"""
+# Features attendées (dans le même ordre que l'entraînement)
+# Features attendues (dans le même ordre que l'entraînement)
+FEATURE_COLS = [
+    'credit_lines_outstanding',
+    'loan_amt_outstanding',
+    'total_debt_outstanding',
+    'income',
+    'years_employed',
+    'fico_score'
+]
 
-@app.route("/")
-def home():
-    return render_template_string(HTML)
+
+def load_model():
+    """Charge le modele depuis le fichier pickle."""
+    try:
+        with open(MODEL_PATH, 'rb') as f:
+            model = pickle.load(f)
+        print(f"Modele charge depuis {MODEL_PATH}")
+        return model
+    except FileNotFoundError:
+        print(f"Erreur: Le fichier {MODEL_PATH} n'existe pas")
+        return None
+    except Exception as e:
+        print(f"Erreur lors du chargement du modele: {e}")
+        return None
+
+
+model = load_model()
+
+
+def model_pred(features):
+    """
+    Effectue une prédiction basée sur les features fournies.
+    
+    Args:
+        features: dict avec les clés correspondant aux colonnes attendues
+        
+    Returns:
+        int: 0 (pas de défaut) ou 1 (risque de défaut)
+    """
+    # Créer un DataFrame avec l'ordre correct des colonnes
+    test_data = pd.DataFrame([features])[FEATURE_COLS]
+    prediction = model.predict(test_data)
+    return int(prediction[0])
+
+
+@app.route("/", methods=["GET"])
+def Home():
+    return render_template("index.html")
+
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    data = request.get_json()
-    FEATURES = ['credit_lines_outstanding', 'loan_amt_outstanding', 'total_debt_outstanding', 'income', 'years_employed', 'fico_score']
-    df = pd.DataFrame([data])[FEATURES]
-    prediction = pipeline.predict(df)[0]
-    proba = pipeline.predict_proba(df)[0][1]
-    return jsonify({
-        "prediction": int(prediction),
-        "probabilite_defaut": round(float(proba), 4)
-    })
+    if request.method == "POST":
+        try:
+                        # Recuperation des donnees du formulaire
+            features = {
+                'credit_lines_outstanding': float(request.form.get('credit_lines_outstanding', 0)),
+                'loan_amt_outstanding': float(request.form.get('loan_amt_outstanding', 0)),
+                'total_debt_outstanding': float(request.form.get('total_debt_outstanding', 0)),
+                'income': float(request.form.get('income', 0)),
+                'years_employed': int(request.form.get('years_employed', 0)),
+                'fico_score': int(request.form.get('fico_score', 0)),
+            }
+            
+            # Prédiction
+            prediction = model_pred(features)
+            
+            if prediction == 1:
+                prediction_text = "⚠️ Risque de défaut détecté. Veuillez revoir les conditions de prêt."
+            else:
+                prediction_text = "✓ Pas de risque de défaut détecté. Vous pouvez accepter ce prêt."
+            
+            return render_template("index.html", prediction_text=prediction_text)
+        
+        except Exception as e:
+            return render_template(
+                "index.html",
+                prediction_text=f"Erreur lors de la prédiction: {str(e)}"
+            )
+    else:
+        return render_template("index.html")
+
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
