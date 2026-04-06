@@ -58,7 +58,7 @@ def test_prediction_consistency():
     assert pred1 == pred2, "Le modèle doit donner des prédictions cohérentes"
 
 
-if __name__ == "_main_":
+if __name__ == "__main__":
     # Exécution simple de test d'exemple
     print("Test 1 : Données avec risque de défaut")
     test_predict_with_default_risk()
