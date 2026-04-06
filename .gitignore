@@ -6,3 +6,4 @@ mlflow.db
 notebooks/mlruns/
 mlartifacts/
 venv/
+.pytest_cache/
